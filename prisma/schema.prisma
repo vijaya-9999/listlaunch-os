@@ -1,0 +1,142 @@
+// ListLaunch OS — SQLite schema for local dogfood
+// Production (Neon/Vercel): use prisma/schema.postgres.prisma — see README Deploy
+// Keep models in sync with schema.postgres.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String                   @id @default(cuid())
+  email          String                   @unique
+  name           String
+  passwordHash   String
+  createdAt      DateTime                 @default(now())
+  launches       Launch[]
+  templatePhases WorkspaceTemplatePhase[]
+  vendors        Vendor[]
+}
+
+model Launch {
+  id                String             @id @default(cuid())
+  address           String
+  sellerName        String
+  sellerPhone       String?
+  sellerEmail       String?
+  goLiveAt          DateTime
+  propertyType      String             @default("residential")
+  status            String             @default("active") // active | archived | live
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phases            Phase[]
+  vendorJobs        VendorJob[]
+  sellerPortalToken SellerPortalToken?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Phase {
+  id           String  @id @default(cuid())
+  launchId     String
+  launch       Launch  @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  name         String
+  order        Int
+  key          String // intake | repairs | clean | stage | photo | mls_qa | golive | custom
+  isPhotoPhase Boolean @default(false) // completing tasks here requires blocksPhoto tasks done
+  isLivePhase  Boolean @default(false) // completing tasks here requires blocksLive tasks done
+  tasks        Task[]
+}
+
+model Task {
+  id          String      @id @default(cuid())
+  phaseId     String
+  phase       Phase       @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  title       String
+  ownerType   String // Agent | Coord | Seller | Vendor | System
+  status      String      @default("todo") // todo | done | na
+  dueAt       DateTime?
+  order       Int
+  key         String? // stable key for dependency checks
+  notes       String?
+  photoUrl    String? // seller portal optional photo of completed work
+  blocksPhoto Boolean     @default(false) // must be done/na before Photo Day phase unlocks
+  blocksLive  Boolean     @default(false) // must be done/na before Live phase unlocks
+  vendorJobs  VendorJob[]
+  updatedAt   DateTime    @updatedAt
+}
+
+model Vendor {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  role      String // cleaner | stager | handyman | photographer | landscaper | other
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  jobs      VendorJob[]
+
+  @@index([userId])
+}
+
+model VendorJob {
+  id            String   @id @default(cuid())
+  launchId      String
+  launch        Launch   @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  vendorId      String
+  vendor        Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  taskId        String?
+  task          Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  scheduledAt   DateTime
+  accessNotes   String?
+  confirmStatus String   @default("pending") // pending | confirmed | declined
+  confirmToken  String   @unique @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([launchId])
+  @@index([vendorId])
+}
+
+model SellerPortalToken {
+  id        String   @id @default(cuid())
+  launchId  String   @unique
+  launch    Launch   @relation(fields: [launchId], references: [id], onDelete: Cascade)
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Per-user SOP template. New launches clone from this; editing does not rewrite open launches.
+model WorkspaceTemplatePhase {
+  id           String                  @id @default(cuid())
+  userId       String
+  user         User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  order        Int
+  key          String
+  isPhotoPhase Boolean                 @default(false)
+  isLivePhase  Boolean                 @default(false)
+  tasks        WorkspaceTemplateTask[]
+
+  @@index([userId])
+}
+
+model WorkspaceTemplateTask {
+  id            String                 @id @default(cuid())
+  phaseId       String
+  phase         WorkspaceTemplatePhase @relation(fields: [phaseId], references: [id], onDelete: Cascade)
+  title         String
+  ownerType     String
+  order         Int
+  key           String?
+  dueOffsetDays Int?
+  blocksPhoto   Boolean                @default(false)
+  blocksLive    Boolean                @default(false)
+}
