@@ -46,7 +46,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-semibold">ListLaunch OS</h1>
           <p className="mt-1 text-sm text-muted">
-            Week 2 dogfood — email/password (local SQLite, no cloud required)
+            Pre-listing launch board for agents
           </p>
         </div>
 
@@ -67,7 +67,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               required
-              defaultValue="vijaya@listlaunch.local"
+              autoComplete="email"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-brand"
             />
           </label>
@@ -77,7 +77,7 @@ export default function LoginPage() {
               name="password"
               type="password"
               required
-              defaultValue="demo1234"
+              autoComplete="current-password"
               minLength={6}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-brand"
             />
@@ -124,9 +124,6 @@ export default function LoginPage() {
           )}
         </p>
 
-        <div className="mt-6 rounded-lg bg-slate-50 p-3 text-xs text-muted">
-          <strong className="text-slate-700">Demo:</strong> vijaya@listlaunch.local / demo1234
-        </div>
       </div>
     </div>
   );
